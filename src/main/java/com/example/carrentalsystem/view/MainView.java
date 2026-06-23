@@ -2,25 +2,27 @@ package com.example.carrentalsystem.view;
 
 import com.example.carrentalsystem.dao.*;
 import com.example.carrentalsystem.model.*;
+import com.example.carrentalsystem.utils.PasswordValidator;
+import com.example.carrentalsystem.utils.PriceCalculator;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.stage.Stage;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 public class MainView {
     private Stage stage;
     private User currentUser;
-    private TabPane tabPane;
+    private String role;
 
     private TableView<Car> carTable;
     private TableView<Client> clientTable;
@@ -31,16 +33,19 @@ public class MainView {
     private ClientDAO clientDAO;
     private ContractDAO contractDAO;
     private FineDAO fineDAO;
+    private UserDAO userDAO;
 
     public MainView(Stage stage, User user) {
         this.stage = stage;
         this.currentUser = user;
+        this.role = user.getRole().getName();
         this.stage.setTitle("Прокат автомобилей");
 
         carDAO = new CarDAO();
         clientDAO = new ClientDAO();
         contractDAO = new ContractDAO();
         fineDAO = new FineDAO();
+        userDAO = new UserDAO();
 
         this.stage.setScene(createScene());
         this.stage.setWidth(1100);
@@ -50,14 +55,35 @@ public class MainView {
     private Scene createScene() {
         BorderPane root = new BorderPane();
 
-        Label welcomeLabel = new Label("Добро пожаловать, " + currentUser.getLogin() +
-                " (Роль: " + currentUser.getRole().getName() + ")");
-        welcomeLabel.setStyle("-fx-background-color: #2E7D32; -fx-text-fill: white; " +
-                "-fx-padding: 15px; -fx-font-size: 16px; -fx-font-weight: bold;");
-        welcomeLabel.setMaxWidth(Double.MAX_VALUE);
-        root.setTop(welcomeLabel);
+        HBox topBox = new HBox(20);
+        topBox.setStyle("-fx-background-color: #2E7D32; -fx-padding: 10px;");
+        topBox.setAlignment(Pos.CENTER_LEFT);
 
-        tabPane = new TabPane();
+        Label welcomeLabel = new Label("Добро пожаловать, " + currentUser.getLogin() +
+                " (Роль: " + role + ")");
+        welcomeLabel.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
+
+        Button changePassBtn = new Button("Сменить пароль");
+        changePassBtn.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-padding: 8px 15px; -fx-font-weight: bold;");
+        changePassBtn.setOnAction(e -> showChangePasswordDialog());
+
+        Button logoutBtn = new Button("Выйти");
+        logoutBtn.setStyle("-fx-background-color: #d32f2f; -fx-text-fill: white; -fx-padding: 8px 20px; -fx-font-weight: bold;");
+        logoutBtn.setOnAction(e -> {
+            stage.close();
+            Stage loginStage = new Stage();
+            LoginView loginView = new LoginView(loginStage);
+            new LoginController(loginView);
+            loginStage.show();
+        });
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        topBox.getChildren().addAll(welcomeLabel, spacer, changePassBtn, logoutBtn);
+        root.setTop(topBox);
+
+        TabPane tabPane = new TabPane();
 
         Tab carsTab = new Tab("Автомобили", createCarsPanel());
         carsTab.setClosable(false);
@@ -75,7 +101,7 @@ public class MainView {
         finesTab.setClosable(false);
         tabPane.getTabs().add(finesTab);
 
-        if (currentUser.getRole().getName().equals("ADMIN")) {
+        if (role.equals("ADMIN")) {
             Tab usersTab = new Tab("Пользователи", createUsersPanel());
             usersTab.setClosable(false);
             tabPane.getTabs().add(usersTab);
@@ -89,6 +115,15 @@ public class MainView {
         stage.show();
     }
 
+    private boolean isAdmin() {
+        return role.equals("ADMIN");
+    }
+
+    private boolean isManager() {
+        return role.equals("MANAGER") || role.equals("ADMIN");
+    }
+
+    // ========== АВТОМОБИЛИ ==========
     private VBox createCarsPanel() {
         VBox vbox = new VBox(10);
         vbox.setPadding(new Insets(15));
@@ -114,20 +149,27 @@ public class MainView {
         carTable.getColumns().addAll(colId, colBrand, colYear, colType);
 
         HBox buttonBox = new HBox(10);
-        Button addBtn = new Button("Добавить");
-        Button editBtn = new Button("Изменить");
-        Button deleteBtn = new Button("Удалить");
+
+        if (isManager()) {
+            Button addBtn = new Button("Добавить");
+            Button editBtn = new Button("Изменить");
+            addBtn.setOnAction(e -> showAddCarDialog());
+            editBtn.setOnAction(e -> showEditCarDialog());
+            buttonBox.getChildren().addAll(addBtn, editBtn);
+        }
+
+        if (isAdmin()) {
+            Button deleteBtn = new Button("Удалить");
+            deleteBtn.setOnAction(e -> deleteCar());
+            buttonBox.getChildren().add(deleteBtn);
+        }
+
         Button refreshBtn = new Button("Обновить");
-
-        addBtn.setOnAction(e -> showAddCarDialog());
-        editBtn.setOnAction(e -> showEditCarDialog());
-        deleteBtn.setOnAction(e -> deleteCar());
         refreshBtn.setOnAction(e -> loadCars());
+        buttonBox.getChildren().add(refreshBtn);
 
-        buttonBox.getChildren().addAll(addBtn, editBtn, deleteBtn, refreshBtn);
         vbox.getChildren().addAll(carTable, buttonBox);
         loadCars();
-
         return vbox;
     }
 
@@ -174,7 +216,7 @@ public class MainView {
                     String type = typeField.getText();
                     return new Car(0, brand, year, type);
                 } catch (NumberFormatException e) {
-                    showAlert("Ошибка", "Год должен быть числом!");
+                    showAlert("Ошибка", "Год должен быть числом");
                     return null;
                 }
             }
@@ -185,8 +227,6 @@ public class MainView {
             if (carDAO.addCar(car)) {
                 loadCars();
                 showAlert("Успех", "Автомобиль добавлен");
-            } else {
-                showAlert("Ошибка", "Не удалось добавить автомобиль");
             }
         });
     }
@@ -242,8 +282,6 @@ public class MainView {
             if (carDAO.updateCar(car)) {
                 loadCars();
                 showAlert("Успех", "Автомобиль обновлен");
-            } else {
-                showAlert("Ошибка", "Не удалось обновить автомобиль");
             }
         });
     }
@@ -265,13 +303,12 @@ public class MainView {
                 if (carDAO.deleteCar(selected.getId())) {
                     loadCars();
                     showAlert("Успех", "Автомобиль удален");
-                } else {
-                    showAlert("Ошибка", "Не удалось удалить автомобиль");
                 }
             }
         });
     }
 
+    // ========== КЛИЕНТЫ ==========
     private VBox createClientsPanel() {
         VBox vbox = new VBox(10);
         vbox.setPadding(new Insets(15));
@@ -294,18 +331,13 @@ public class MainView {
         colAddress.setCellValueFactory(new PropertyValueFactory<>("address"));
         colAddress.setPrefWidth(200);
 
-        TableColumn<Client, String> colDiscount = new TableColumn<>("Скидка");
-        colDiscount.setCellValueFactory(new PropertyValueFactory<>("discount"));
-        colDiscount.setPrefWidth(150);
-
-        clientTable.getColumns().addAll(colId, colName, colPhone, colAddress, colDiscount);
+        clientTable.getColumns().addAll(colId, colName, colPhone, colAddress);
 
         Button refreshBtn = new Button("Обновить");
         refreshBtn.setOnAction(e -> loadClients());
 
         vbox.getChildren().addAll(clientTable, refreshBtn);
         loadClients();
-
         return vbox;
     }
 
@@ -315,6 +347,7 @@ public class MainView {
         clientTable.setItems(data);
     }
 
+    // ========== ДОГОВОРЫ ==========
     private VBox createContractsPanel() {
         VBox vbox = new VBox(10);
         vbox.setPadding(new Insets(15));
@@ -343,12 +376,20 @@ public class MainView {
 
         contractTable.getColumns().addAll(colId, colClient, colIssue, colReturn, colAmount);
 
+        HBox buttonBox = new HBox(10);
+
+        if (isManager()) {
+            Button addBtn = new Button("Новый договор");
+            addBtn.setOnAction(e -> showAddContractDialog());
+            buttonBox.getChildren().add(addBtn);
+        }
+
         Button refreshBtn = new Button("Обновить");
         refreshBtn.setOnAction(e -> loadContracts());
+        buttonBox.getChildren().add(refreshBtn);
 
-        vbox.getChildren().addAll(contractTable, refreshBtn);
+        vbox.getChildren().addAll(contractTable, buttonBox);
         loadContracts();
-
         return vbox;
     }
 
@@ -358,6 +399,129 @@ public class MainView {
         contractTable.setItems(data);
     }
 
+    private void showAddContractDialog() {
+        Dialog<Contract> dialog = new Dialog<>();
+        dialog.setTitle("Новый договор аренды");
+        dialog.setHeaderText("Заполните данные для аренды");
+
+        ButtonType createBtn = new ButtonType("Создать договор", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(createBtn, ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(15);
+        grid.setVgap(15);
+        grid.setPadding(new Insets(20));
+
+        ComboBox<Client> clientCombo = new ComboBox<>();
+        clientCombo.getItems().addAll(clientDAO.getAllClients());
+
+        ComboBox<Car> carCombo = new ComboBox<>();
+        carCombo.getItems().addAll(carDAO.getAllCars());
+
+        DatePicker issueDatePicker = new DatePicker(LocalDate.now());
+        DatePicker returnDatePicker = new DatePicker(LocalDate.now().plusDays(3));
+
+        TextField priceField = new TextField();
+        priceField.setEditable(false);
+        priceField.setPromptText("Нажмите 'Рассчитать'");
+
+        Button calcButton = new Button("Рассчитать стоимость");
+
+        Label carInfoLabel = new Label("Выберите автомобиль");
+        carInfoLabel.setStyle("-fx-font-style: italic; -fx-text-fill: #666;");
+
+        carCombo.setOnAction(e -> {
+            Car selected = carCombo.getValue();
+            if (selected != null) {
+                double base = PriceCalculator.getBasePrice(selected.getType());
+                double coeff = PriceCalculator.getYearCoefficient(selected.getProductionYear());
+                carInfoLabel.setText(selected.getBrand() + " | Тип: " + selected.getType() +
+                        " | База: " + base + " руб./день x " + String.format("%.2f", coeff));
+                priceField.clear();
+            }
+        });
+
+        calcButton.setOnAction(e -> {
+            Car car = carCombo.getValue();
+            LocalDate issue = issueDatePicker.getValue();
+            LocalDate returnD = returnDatePicker.getValue();
+
+            if (car == null || issue == null || returnD == null) {
+                showAlert("Ошибка", "Заполните все поля!");
+                return;
+            }
+            if (returnD.isBefore(issue) || returnD.isEqual(issue)) {
+                showAlert("Ошибка", "Дата возврата должна быть позже!");
+                return;
+            }
+
+            double total = PriceCalculator.calculateTotal(car, issue, returnD);
+            long days = java.time.temporal.ChronoUnit.DAYS.between(issue, returnD);
+            if (days == 0) days = 1;
+
+            priceField.setText(String.format("%.2f руб. (%.2f руб./день x %d дней)",
+                    total, PriceCalculator.getBasePrice(car.getType()) *
+                            PriceCalculator.getYearCoefficient(car.getProductionYear()), days));
+
+            showAlert("Расчёт", "Итоговая стоимость: " + String.format("%.2f руб.", total));
+        });
+
+        int row = 0;
+        grid.add(new Label("Клиент:"), 0, row);
+        grid.add(clientCombo, 1, row);
+        row++;
+        grid.add(new Label("Автомобиль:"), 0, row);
+        grid.add(carCombo, 1, row);
+        row++;
+        grid.add(carInfoLabel, 1, row);
+        row++;
+        grid.add(new Label("Дата выдачи:"), 0, row);
+        grid.add(issueDatePicker, 1, row);
+        row++;
+        grid.add(new Label("Дата возврата:"), 0, row);
+        grid.add(returnDatePicker, 1, row);
+        row++;
+        grid.add(new Label("Стоимость:"), 0, row);
+        HBox priceBox = new HBox(10);
+        priceBox.getChildren().addAll(priceField, calcButton);
+        grid.add(priceBox, 1, row);
+
+        dialog.getDialogPane().setContent(grid);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == createBtn) {
+                Client client = clientCombo.getValue();
+                Car car = carCombo.getValue();
+                LocalDate issue = issueDatePicker.getValue();
+                LocalDate returnD = returnDatePicker.getValue();
+
+                if (client == null || car == null || issue == null || returnD == null) {
+                    showAlert("Ошибка", "Заполните все поля!");
+                    return null;
+                }
+
+                double total = PriceCalculator.calculateTotal(car, issue, returnD);
+                Contract contract = new Contract();
+                contract.setClient(client);
+                contract.setIssueDate(issue);
+                contract.setReturnDate(returnD);
+                contract.setTotalAmount(BigDecimal.valueOf(total));
+                return contract;
+            }
+            return null;
+        });
+
+        dialog.showAndWait().ifPresent(contract -> {
+            if (contractDAO.addContract(contract)) {
+                loadContracts();
+                showAlert("Успех", "Договор создан! Стоимость: " + contract.getTotalAmount() + " руб.");
+            } else {
+                showAlert("Ошибка", "Не удалось создать договор");
+            }
+        });
+    }
+
+    // ========== ШТРАФЫ ==========
     private VBox createFinesPanel() {
         VBox vbox = new VBox(10);
         vbox.setPadding(new Insets(15));
@@ -376,7 +540,7 @@ public class MainView {
         colAmount.setCellValueFactory(new PropertyValueFactory<>("amount"));
         colAmount.setPrefWidth(100);
 
-        TableColumn<Fine, String> colPaid = new TableColumn<>("Оплачен");
+        TableColumn<Fine, Boolean> colPaid = new TableColumn<>("Оплачен");
         colPaid.setCellValueFactory(new PropertyValueFactory<>("paid"));
         colPaid.setPrefWidth(80);
 
@@ -391,7 +555,6 @@ public class MainView {
 
         vbox.getChildren().addAll(fineTable, refreshBtn);
         loadFines();
-
         return vbox;
     }
 
@@ -401,6 +564,7 @@ public class MainView {
         fineTable.setItems(data);
     }
 
+    // ========== ПОЛЬЗОВАТЕЛИ (только ADMIN) ==========
     private VBox createUsersPanel() {
         VBox vbox = new VBox(10);
         vbox.setPadding(new Insets(15));
@@ -425,7 +589,6 @@ public class MainView {
 
         userTable.getColumns().addAll(colId, colLogin, colEmail, colRole);
 
-        UserDAO userDAO = new UserDAO();
         List<User> users = userDAO.getAllUsers();
         ObservableList<User> data = FXCollections.observableArrayList(users);
         userTable.setItems(data);
@@ -434,6 +597,76 @@ public class MainView {
         return vbox;
     }
 
+    // ========== СМЕНА ПАРОЛЯ ==========
+    private void showChangePasswordDialog() {
+        Dialog<String> dialog = new Dialog<>();
+        dialog.setTitle("Смена пароля");
+        dialog.setHeaderText("Изменить пароль для " + currentUser.getLogin());
+
+        ButtonType saveBtn = new ButtonType("Сохранить", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveBtn, ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20));
+
+        PasswordField oldPass = new PasswordField();
+        oldPass.setPromptText("Старый пароль");
+        PasswordField newPass = new PasswordField();
+        newPass.setPromptText("Новый пароль");
+        PasswordField confirmPass = new PasswordField();
+        confirmPass.setPromptText("Подтвердите пароль");
+        Label errorLabel = new Label();
+        errorLabel.setStyle("-fx-text-fill: red;");
+
+        grid.add(new Label("Старый пароль:"), 0, 0);
+        grid.add(oldPass, 1, 0);
+        grid.add(new Label("Новый пароль:"), 0, 1);
+        grid.add(newPass, 1, 1);
+        grid.add(new Label("Подтверждение:"), 0, 2);
+        grid.add(confirmPass, 1, 2);
+        grid.add(errorLabel, 1, 3);
+
+        dialog.getDialogPane().setContent(grid);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == saveBtn) {
+                String old = oldPass.getText();
+                String newP = newPass.getText();
+                String confirm = confirmPass.getText();
+
+                if (!newP.equals(confirm)) {
+                    errorLabel.setText("Пароли не совпадают!");
+                    return null;
+                }
+
+                if (!PasswordValidator.isValid(newP)) {
+                    errorLabel.setText(PasswordValidator.getRequirements());
+                    return null;
+                }
+
+                if (!old.equals(currentUser.getPasswordHash())) {
+                    errorLabel.setText("Неверный старый пароль!");
+                    return null;
+                }
+
+                return newP;
+            }
+            return null;
+        });
+
+        dialog.showAndWait().ifPresent(newPassword -> {
+            if (userDAO.updatePassword(currentUser.getId(), newPassword)) {
+                showAlert("Успех", "Пароль изменён!");
+                currentUser.setPasswordHash(newPassword);
+            } else {
+                showAlert("Ошибка", "Не удалось изменить пароль");
+            }
+        });
+    }
+
+    // ========== ВСПОМОГАТЕЛЬНЫЕ ==========
     private void showAlert(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(title);

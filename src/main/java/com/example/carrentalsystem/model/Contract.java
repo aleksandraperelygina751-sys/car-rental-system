@@ -20,6 +20,13 @@ public class Contract {
         this.client = client;
     }
 
+    public Contract(LocalDate issueDate, LocalDate returnDate, BigDecimal totalAmount, Client client) {
+        this.issueDate = issueDate;
+        this.returnDate = returnDate;
+        this.totalAmount = totalAmount;
+        this.client = client;
+    }
+
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
 

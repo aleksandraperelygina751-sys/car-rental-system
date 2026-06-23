@@ -45,11 +45,33 @@ public class ContractDAO {
     public boolean addContract(Contract contract) {
         String query = "INSERT INTO contracts (issue_date, return_date, total_amount, id_client) VALUES (?, ?, ?, ?)";
 
-        try (PreparedStatement stmt = DBConnection.getInstance().getConnection().prepareStatement(query)) {
+        try (PreparedStatement stmt = DBConnection.getInstance().getConnection().prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setDate(1, Date.valueOf(contract.getIssueDate()));
             stmt.setDate(2, Date.valueOf(contract.getReturnDate()));
             stmt.setBigDecimal(3, contract.getTotalAmount());
             stmt.setInt(4, contract.getClient().getId());
+
+            int affected = stmt.executeUpdate();
+            if (affected > 0) {
+                ResultSet generatedKeys = stmt.getGeneratedKeys();
+                if (generatedKeys.next()) {
+                    contract.setId(generatedKeys.getInt(1));
+                }
+                return true;
+            }
+            return false;
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean deleteContract(int id) {
+        String query = "DELETE FROM contracts WHERE id_contract = ?";
+
+        try (PreparedStatement stmt = DBConnection.getInstance().getConnection().prepareStatement(query)) {
+            stmt.setInt(1, id);
             return stmt.executeUpdate() > 0;
 
         } catch (SQLException e) {
