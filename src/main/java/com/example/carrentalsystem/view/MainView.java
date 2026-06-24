@@ -290,6 +290,7 @@ public class MainView {
             contract.setDiscount(client.getDiscount());
 
             if (contractDAO.addContract(contract)) {
+                clientDAO.updateClientDiscount(client.getId());
                 showAlert("Успех!", "Заявка отправлена!");
                 priceField.clear();
                 carCombo.setValue(null);
@@ -982,6 +983,7 @@ public class MainView {
 
         dialog.showAndWait().ifPresent(contract -> {
             if (contractDAO.addContract(contract)) {
+                clientDAO.updateClientDiscount(contract.getClient().getId());
                 loadContracts();
                 showAlert("Успех", "Договор создан! Стоимость: " + contract.getTotalAmount() + " руб.");
             } else {

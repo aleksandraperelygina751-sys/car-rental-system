@@ -107,4 +107,49 @@ public class ClientDAO {
             return false;
         }
     }
+
+    public void updateClientDiscount(int clientId) {
+        String countQuery = "SELECT COUNT(*) FROM contracts WHERE id_client = ?";
+        String discountQuery = "SELECT id_discount FROM discounts WHERE min_rentals <= ? ORDER BY min_rentals DESC LIMIT 1";
+
+        try (PreparedStatement countStmt = DBConnection.getInstance().getConnection().prepareStatement(countQuery)) {
+            countStmt.setInt(1, clientId);
+            ResultSet countRs = countStmt.executeQuery();
+            int rentals = 0;
+            if (countRs.next()) {
+                rentals = countRs.getInt(1);
+            }
+
+            try (PreparedStatement discountStmt = DBConnection.getInstance().getConnection().prepareStatement(discountQuery)) {
+                discountStmt.setInt(1, rentals);
+                ResultSet discountRs = discountStmt.executeQuery();
+                if (discountRs.next()) {
+                    int discountId = discountRs.getInt("id_discount");
+
+                    String updateQuery = "UPDATE clients SET id_discount = ? WHERE id_client = ?";
+                    try (PreparedStatement updateStmt = DBConnection.getInstance().getConnection().prepareStatement(updateQuery)) {
+                        updateStmt.setInt(1, discountId);
+                        updateStmt.setInt(2, clientId);
+                        updateStmt.executeUpdate();
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public int getClientIdByUserId(int userId) {
+        String query = "SELECT id_client FROM clients WHERE id_user = ?";
+        try (PreparedStatement stmt = DBConnection.getInstance().getConnection().prepareStatement(query)) {
+            stmt.setInt(1, userId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("id_client");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return -1;
+    }
 }
