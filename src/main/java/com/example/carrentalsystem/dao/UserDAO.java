@@ -74,11 +74,33 @@ public class UserDAO {
     public boolean addUser(User user) {
         String query = "INSERT INTO users (login, password_hash, email, id_role) VALUES (?, ?, ?, ?)";
 
-        try (PreparedStatement stmt = DBConnection.getInstance().getConnection().prepareStatement(query)) {
+        try (PreparedStatement stmt = DBConnection.getInstance().getConnection().prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setString(1, user.getLogin());
             stmt.setString(2, user.getPasswordHash());
             stmt.setString(3, user.getEmail());
             stmt.setInt(4, user.getRole().getId());
+
+            int affected = stmt.executeUpdate();
+            if (affected > 0) {
+                ResultSet generatedKeys = stmt.getGeneratedKeys();
+                if (generatedKeys.next()) {
+                    user.setId(generatedKeys.getInt(1));
+                }
+                return true;
+            }
+            return false;
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean deleteUser(int id) {
+        String query = "DELETE FROM users WHERE id_user = ?";
+
+        try (PreparedStatement stmt = DBConnection.getInstance().getConnection().prepareStatement(query)) {
+            stmt.setInt(1, id);
             return stmt.executeUpdate() > 0;
 
         } catch (SQLException e) {

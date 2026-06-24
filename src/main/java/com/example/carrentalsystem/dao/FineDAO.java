@@ -55,6 +55,53 @@ public class FineDAO {
         return fines;
     }
 
+    public List<Fine> getFinesByClientId(int clientId) {
+        List<Fine> fines = new ArrayList<>();
+        String query = "SELECT f.*, " +
+                "c.id_contract, c.issue_date, c.return_date, c.total_amount, " +
+                "cl.id_client, cl.full_name, cl.phone, cl.address " +
+                "FROM fines f " +
+                "JOIN contracts c ON f.id_contract = c.id_contract " +
+                "JOIN clients cl ON c.id_client = cl.id_client " +
+                "WHERE cl.id_client = ?";
+
+        try (PreparedStatement stmt = DBConnection.getInstance().getConnection().prepareStatement(query)) {
+            stmt.setInt(1, clientId);
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                Client client = new Client(
+                        rs.getInt("id_client"),
+                        rs.getString("full_name"),
+                        rs.getString("phone"),
+                        rs.getString("address"),
+                        null
+                );
+
+                Contract contract = new Contract(
+                        rs.getInt("id_contract"),
+                        rs.getDate("issue_date").toLocalDate(),
+                        rs.getDate("return_date").toLocalDate(),
+                        rs.getBigDecimal("total_amount"),
+                        client
+                );
+
+                Fine fine = new Fine(
+                        rs.getInt("id_fine"),
+                        rs.getString("reason"),
+                        rs.getBigDecimal("amount"),
+                        rs.getBoolean("paid"),
+                        contract
+                );
+                fines.add(fine);
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return fines;
+    }
+
     public boolean addFine(Fine fine) {
         String query = "INSERT INTO fines (reason, amount, paid, id_contract) VALUES (?, ?, ?, ?)";
 

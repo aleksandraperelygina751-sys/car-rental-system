@@ -6,6 +6,7 @@ public class Client {
     private String phone;
     private String address;
     private Discount discount;
+    private int idUser;
 
     public Client() {}
 
@@ -31,6 +32,9 @@ public class Client {
 
     public Discount getDiscount() { return discount; }
     public void setDiscount(Discount discount) { this.discount = discount; }
+
+    public int getIdUser() { return idUser; }
+    public void setIdUser(int idUser) { this.idUser = idUser; }
 
     @Override
     public String toString() {

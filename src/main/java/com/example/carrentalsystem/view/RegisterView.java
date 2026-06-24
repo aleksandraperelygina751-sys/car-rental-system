@@ -10,6 +10,9 @@ import javafx.stage.Stage;
 
 public class RegisterView {
     private Stage stage;
+    private TextField fullNameField;
+    private TextField phoneField;
+    private TextField addressField;
     private TextField loginField;
     private TextField emailField;
     private PasswordField passwordField;
@@ -27,24 +30,36 @@ public class RegisterView {
     }
 
     private Scene createScene() {
-        Label titleLabel = new Label("Регистрация");
+        Label titleLabel = new Label("Регистрация нового клиента");
         titleLabel.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
+
+        fullNameField = new TextField();
+        fullNameField.setPromptText("ФИО");
+        fullNameField.setPrefWidth(250);
+
+        phoneField = new TextField();
+        phoneField.setPromptText("Телефон");
+        phoneField.setPrefWidth(250);
+
+        addressField = new TextField();
+        addressField.setPromptText("Адрес");
+        addressField.setPrefWidth(250);
 
         loginField = new TextField();
         loginField.setPromptText("Логин");
-        loginField.setPrefWidth(200);
+        loginField.setPrefWidth(250);
 
         emailField = new TextField();
-        emailField.setPromptText("Email");
-        emailField.setPrefWidth(200);
+        emailField.setPromptText("Email (необязательно)");
+        emailField.setPrefWidth(250);
 
         passwordField = new PasswordField();
-        passwordField.setPromptText("Пароль (8+ символов, цифра, заглавная, спецсимвол)");
-        passwordField.setPrefWidth(200);
+        passwordField.setPromptText("Пароль (8+, цифра, заглавная, спецсимвол)");
+        passwordField.setPrefWidth(250);
 
         confirmField = new PasswordField();
         confirmField.setPromptText("Подтвердите пароль");
-        confirmField.setPrefWidth(200);
+        confirmField.setPrefWidth(250);
 
         registerButton = new Button("Зарегистрироваться");
         registerButton.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold;");
@@ -60,17 +75,36 @@ public class RegisterView {
         GridPane grid = new GridPane();
         grid.setPadding(new Insets(30));
         grid.setHgap(15);
-        grid.setVgap(15);
+        grid.setVgap(12);
         grid.setAlignment(Pos.CENTER);
 
-        grid.add(new Label("Логин:"), 0, 0);
-        grid.add(loginField, 1, 0);
-        grid.add(new Label("Email:"), 0, 1);
-        grid.add(emailField, 1, 1);
-        grid.add(new Label("Пароль:"), 0, 2);
-        grid.add(passwordField, 1, 2);
-        grid.add(new Label("Подтверждение:"), 0, 3);
-        grid.add(confirmField, 1, 3);
+        int row = 0;
+        grid.add(new Label("ФИО:"), 0, row);
+        grid.add(fullNameField, 1, row);
+
+        row++;
+        grid.add(new Label("Телефон:"), 0, row);
+        grid.add(phoneField, 1, row);
+
+        row++;
+        grid.add(new Label("Адрес:"), 0, row);
+        grid.add(addressField, 1, row);
+
+        row++;
+        grid.add(new Label("Логин:"), 0, row);
+        grid.add(loginField, 1, row);
+
+        row++;
+        grid.add(new Label("Email:"), 0, row);
+        grid.add(emailField, 1, row);
+
+        row++;
+        grid.add(new Label("Пароль:"), 0, row);
+        grid.add(passwordField, 1, row);
+
+        row++;
+        grid.add(new Label("Подтверждение:"), 0, row);
+        grid.add(confirmField, 1, row);
 
         VBox buttonBox = new VBox(10);
         buttonBox.setAlignment(Pos.CENTER);
@@ -81,9 +115,12 @@ public class RegisterView {
         root.setPadding(new Insets(20));
         root.getChildren().addAll(titleLabel, grid, buttonBox);
 
-        return new Scene(root, 450, 500);
+        return new Scene(root, 500, 650);
     }
 
+    public String getFullName() { return fullNameField.getText(); }
+    public String getPhone() { return phoneField.getText(); }
+    public String getAddress() { return addressField.getText(); }
     public String getLogin() { return loginField.getText(); }
     public String getEmail() { return emailField.getText(); }
     public String getPassword() { return passwordField.getText(); }

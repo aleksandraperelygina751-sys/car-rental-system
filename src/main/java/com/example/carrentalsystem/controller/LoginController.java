@@ -14,7 +14,6 @@ public class LoginController {
     public LoginController(LoginView view) {
         this.view = view;
         this.userDAO = new UserDAO();
-
         view.getLoginButton().setOnAction(e -> handleLogin());
     }
 

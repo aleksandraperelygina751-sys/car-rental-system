@@ -31,11 +31,11 @@ public class LoginView {
 
         loginField = new TextField();
         loginField.setPromptText("Логин");
-        loginField.setPrefWidth(200);
+        loginField.setPrefWidth(250);
 
         passwordField = new PasswordField();
         passwordField.setPromptText("Пароль");
-        passwordField.setPrefWidth(200);
+        passwordField.setPrefWidth(250);
 
         loginButton = new Button("Войти");
         loginButton.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold;");
@@ -75,7 +75,7 @@ public class LoginView {
         root.setPadding(new Insets(20));
         root.getChildren().addAll(titleLabel, grid, buttonBox);
 
-        return new Scene(root, 400, 350);
+        return new Scene(root, 450, 350);
     }
 
     public String getLogin() { return loginField.getText(); }

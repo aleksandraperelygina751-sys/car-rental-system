@@ -43,4 +43,33 @@ public class ClientDAO {
         }
         return clients;
     }
+
+    public boolean addClient(Client client) {
+        String query = "INSERT INTO clients (full_name, phone, address, id_user) VALUES (?, ?, ?, ?)";
+
+        try (PreparedStatement stmt = DBConnection.getInstance().getConnection().prepareStatement(query)) {
+            stmt.setString(1, client.getFullName());
+            stmt.setString(2, client.getPhone());
+            stmt.setString(3, client.getAddress());
+            stmt.setInt(4, client.getIdUser());
+            return stmt.executeUpdate() > 0;
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean deleteClient(int id) {
+        String query = "DELETE FROM clients WHERE id_client = ?";
+
+        try (PreparedStatement stmt = DBConnection.getInstance().getConnection().prepareStatement(query)) {
+            stmt.setInt(1, id);
+            return stmt.executeUpdate() > 0;
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
 }

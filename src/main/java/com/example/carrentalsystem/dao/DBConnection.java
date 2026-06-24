@@ -21,7 +21,7 @@ public class DBConnection {
             System.out.println("MySQL драйвер не найден!");
             e.printStackTrace();
         } catch (SQLException e) {
-            System.out.println("Ошибка подключения к БД! Запустите MySQL в XAMPP");
+            System.out.println("Ошибка подключения к БД!");
             e.printStackTrace();
         }
     }

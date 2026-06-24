@@ -42,6 +42,41 @@ public class ContractDAO {
         return contracts;
     }
 
+    public List<Contract> getContractsByClientId(int clientId) {
+        List<Contract> contracts = new ArrayList<>();
+        String query = "SELECT c.*, cl.full_name, cl.phone, cl.address " +
+                "FROM contracts c JOIN clients cl ON c.id_client = cl.id_client " +
+                "WHERE c.id_client = ?";
+
+        try (PreparedStatement stmt = DBConnection.getInstance().getConnection().prepareStatement(query)) {
+            stmt.setInt(1, clientId);
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                Client client = new Client(
+                        rs.getInt("id_client"),
+                        rs.getString("full_name"),
+                        rs.getString("phone"),
+                        rs.getString("address"),
+                        null
+                );
+
+                Contract contract = new Contract(
+                        rs.getInt("id_contract"),
+                        rs.getDate("issue_date").toLocalDate(),
+                        rs.getDate("return_date").toLocalDate(),
+                        rs.getBigDecimal("total_amount"),
+                        client
+                );
+                contracts.add(contract);
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return contracts;
+    }
+
     public boolean addContract(Contract contract) {
         String query = "INSERT INTO contracts (issue_date, return_date, total_amount, id_client) VALUES (?, ?, ?, ?)";
 
