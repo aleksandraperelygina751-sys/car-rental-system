@@ -38,3 +38,13 @@
 
 ```bash
 java --module-path "путь_к_папке_javafx/lib" --add-modules javafx.controls,javafx.fxml -jar car-rental-system.jar
+
+Данные для входа
+Роль	Логин	Пароль
+Администратор	admin	Admin2024!
+Менеджер	manager	Manager2024!
+Пользователь	alexandra	Alexandra2024!
+Пользователь	darya	Darya2024!
+Пользователь	varvara	Varvara2024!
+Пользователь	sergey	Sergey2024!
+Пользователь	fedor	Fedor2024!
