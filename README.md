@@ -36,11 +36,12 @@
 ### 2. Запустить приложение
 Откройте командную строку в папке с JAR-файлом и выполните:
 
-```bash
 java --module-path "путь_к_папке_javafx/lib" --add-modules javafx.controls,javafx.fxml -jar car-rental-system.jar
 
+или через MainApplication.java.
+
 Данные для входа
-Роль	Логин	Пароль
+Роль	Логин Пароль
 Администратор	admin	Admin2024!
 Менеджер	manager	Manager2024!
 Пользователь	alexandra	Alexandra2024!
