@@ -9,6 +9,7 @@ public class Contract {
     private LocalDate returnDate;
     private BigDecimal totalAmount;
     private Client client;
+    private Discount discount;
 
     public Contract() {}
 
@@ -42,8 +43,11 @@ public class Contract {
     public Client getClient() { return client; }
     public void setClient(Client client) { this.client = client; }
 
+    public Discount getDiscount() { return discount; }
+    public void setDiscount(Discount discount) { this.discount = discount; }
+
     @Override
     public String toString() {
-        return "Договор #" + id + " (" + client.getFullName() + ")";
+        return "Договор #" + id;
     }
 }

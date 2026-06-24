@@ -36,6 +36,7 @@ public class MainView {
     private ContractDAO contractDAO;
     private FineDAO fineDAO;
     private UserDAO userDAO;
+    private DiscountDAO discountDAO;
 
     public MainView(Stage stage, User user) {
         this.stage = stage;
@@ -48,6 +49,7 @@ public class MainView {
         contractDAO = new ContractDAO();
         fineDAO = new FineDAO();
         userDAO = new UserDAO();
+        discountDAO = new DiscountDAO();
 
         this.stage.setScene(createScene());
         this.stage.setWidth(1100);
@@ -58,19 +60,19 @@ public class MainView {
         BorderPane root = new BorderPane();
 
         HBox topBox = new HBox(20);
-        topBox.setStyle("-fx-background-color: #2E7D32; -fx-padding: 10px;");
+        topBox.setStyle("-fx-background-color: #F8BBD0; -fx-padding: 10px;");
         topBox.setAlignment(Pos.CENTER_LEFT);
 
         Label welcomeLabel = new Label("Добро пожаловать, " + currentUser.getLogin() +
                 " (Роль: " + role + ")");
-        welcomeLabel.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
+        welcomeLabel.setStyle("-fx-text-fill: #880E4F; -fx-font-size: 16px; -fx-font-weight: bold;");
 
         Button changePassBtn = new Button("Сменить пароль");
-        changePassBtn.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-padding: 8px 15px; -fx-font-weight: bold;");
+        changePassBtn.setStyle("-fx-background-color: #9E9E9E; -fx-text-fill: white; -fx-padding: 8px 15px; -fx-font-weight: bold;");
         changePassBtn.setOnAction(e -> showChangePasswordDialog());
 
         Button logoutBtn = new Button("Выйти");
-        logoutBtn.setStyle("-fx-background-color: #d32f2f; -fx-text-fill: white; -fx-padding: 8px 20px; -fx-font-weight: bold;");
+        logoutBtn.setStyle("-fx-background-color: #D32F2F; -fx-text-fill: white; -fx-padding: 8px 20px; -fx-font-weight: bold;");
         logoutBtn.setOnAction(e -> {
             stage.close();
             Stage loginStage = new Stage();
@@ -164,7 +166,7 @@ public class MainView {
     private VBox createOrderPanel() {
         VBox vbox = new VBox(15);
         vbox.setPadding(new Insets(20));
-        vbox.setStyle("-fx-background-color: #f9f9f9;");
+        vbox.setStyle("-fx-background-color: white;");
 
         Label titleLabel = new Label("Заказать аренду автомобиля");
         titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
@@ -189,7 +191,7 @@ public class MainView {
         priceField.setPrefWidth(200);
 
         Button calcButton = new Button("Рассчитать стоимость");
-        calcButton.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-font-weight: bold;");
+        calcButton.setStyle("-fx-background-color: #E91E63; -fx-text-fill: white; -fx-font-weight: bold;");
 
         Label carInfoLabel = new Label("Выберите автомобиль");
         carInfoLabel.setStyle("-fx-font-style: italic; -fx-text-fill: #666;");
@@ -219,17 +221,34 @@ public class MainView {
                 return;
             }
 
-            double total = PriceCalculator.calculateTotal(car, issue, returnD);
+            int clientId = getClientIdByUser(currentUser);
+            Discount discount = null;
+            if (clientId != -1) {
+                List<Client> clients = clientDAO.getAllClients();
+                for (Client client : clients) {
+                    if (client.getId() == clientId) {
+                        discount = client.getDiscount();
+                        break;
+                    }
+                }
+            }
+
+            double total = PriceCalculator.calculateTotalWithDiscount(car, issue, returnD, discount);
             long days = java.time.temporal.ChronoUnit.DAYS.between(issue, returnD);
             if (days == 0) days = 1;
 
-            priceField.setText(String.format("%.2f руб. (%.2f руб./день x %d дней)",
-                    total, PriceCalculator.getBasePrice(car.getType()) *
-                            PriceCalculator.getYearCoefficient(car.getProductionYear()), days));
+            if (discount != null) {
+                priceField.setText(String.format("%.2f руб. (скидка %s %s%%)",
+                        total, discount.getName(), discount.getPercentSize()));
+            } else {
+                priceField.setText(String.format("%.2f руб. (%.2f руб./день x %d дней)",
+                        total, PriceCalculator.getBasePrice(car.getType()) *
+                                PriceCalculator.getYearCoefficient(car.getProductionYear()), days));
+            }
         });
 
         Button orderBtn = new Button("Отправить заявку");
-        orderBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold;");
+        orderBtn.setStyle("-fx-background-color: #E91E63; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold;");
         orderBtn.setPrefWidth(200);
 
         orderBtn.setOnAction(e -> {
@@ -262,15 +281,16 @@ public class MainView {
                 return;
             }
 
-            double total = PriceCalculator.calculateTotal(car, issue, returnD);
+            double total = PriceCalculator.calculateTotalWithDiscount(car, issue, returnD, client.getDiscount());
             Contract contract = new Contract();
             contract.setClient(client);
             contract.setIssueDate(issue);
             contract.setReturnDate(returnD);
             contract.setTotalAmount(BigDecimal.valueOf(total));
+            contract.setDiscount(client.getDiscount());
 
             if (contractDAO.addContract(contract)) {
-                showAlert("Успех!", "Заявка отправлена! Ожидайте подтверждения менеджера.");
+                showAlert("Успех!", "Заявка отправлена!");
                 priceField.clear();
                 carCombo.setValue(null);
                 carInfoLabel.setText("Выберите автомобиль");
@@ -310,7 +330,7 @@ public class MainView {
     private VBox createProfilePanel() {
         VBox vbox = new VBox(15);
         vbox.setPadding(new Insets(20));
-        vbox.setStyle("-fx-background-color: #f5f5f5;");
+        vbox.setStyle("-fx-background-color: white;");
 
         Label titleLabel = new Label("Мой профиль");
         titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
@@ -322,27 +342,30 @@ public class MainView {
         grid.add(new Label("Логин:"), 0, 0);
         grid.add(new Label(currentUser.getLogin()), 1, 0);
 
-        grid.add(new Label("Роль:"), 0, 1);
-        grid.add(new Label(currentUser.getRole().getName()), 1, 1);
+        grid.add(new Label("Email:"), 0, 1);
+        grid.add(new Label(currentUser.getEmail()), 1, 1);
+
+        grid.add(new Label("Роль:"), 0, 2);
+        grid.add(new Label(currentUser.getRole().getName()), 1, 2);
 
         int clientId = getClientIdByUser(currentUser);
         if (clientId != -1) {
             List<Client> clients = clientDAO.getAllClients();
             for (Client client : clients) {
                 if (client.getId() == clientId) {
-                    grid.add(new Label("ФИО:"), 0, 2);
-                    grid.add(new Label(client.getFullName()), 1, 2);
+                    grid.add(new Label("ФИО:"), 0, 3);
+                    grid.add(new Label(client.getFullName()), 1, 3);
 
-                    grid.add(new Label("Телефон:"), 0, 3);
-                    grid.add(new Label(client.getPhone() != null ? client.getPhone() : "Не указан"), 1, 3);
+                    grid.add(new Label("Телефон:"), 0, 4);
+                    grid.add(new Label(client.getPhone() != null ? client.getPhone() : "Не указан"), 1, 4);
 
-                    grid.add(new Label("Адрес:"), 0, 4);
-                    grid.add(new Label(client.getAddress() != null ? client.getAddress() : "Не указан"), 1, 4);
+                    grid.add(new Label("Адрес:"), 0, 5);
+                    grid.add(new Label(client.getAddress() != null ? client.getAddress() : "Не указан"), 1, 5);
 
                     if (client.getDiscount() != null) {
-                        grid.add(new Label("Скидка:"), 0, 5);
+                        grid.add(new Label("Скидка:"), 0, 6);
                         grid.add(new Label(client.getDiscount().getName() + " (" +
-                                client.getDiscount().getPercentSize() + "%)"), 1, 5);
+                                client.getDiscount().getPercentSize() + "%)"), 1, 6);
                     }
                     break;
                 }
@@ -350,7 +373,7 @@ public class MainView {
         }
 
         Button changePassBtn = new Button("Сменить пароль");
-        changePassBtn.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-padding: 10px 20px; -fx-font-weight: bold;");
+        changePassBtn.setStyle("-fx-background-color: #9E9E9E; -fx-text-fill: white; -fx-padding: 10px 20px; -fx-font-weight: bold;");
         changePassBtn.setOnAction(e -> showChangePasswordDialog());
 
         vbox.getChildren().addAll(titleLabel, grid, changePassBtn);
@@ -553,7 +576,7 @@ public class MainView {
 
         TableColumn<Client, String> colName = new TableColumn<>("ФИО");
         colName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
-        colName.setPrefWidth(250);
+        colName.setPrefWidth(200);
 
         TableColumn<Client, String> colPhone = new TableColumn<>("Телефон");
         colPhone.setCellValueFactory(new PropertyValueFactory<>("phone"));
@@ -561,7 +584,7 @@ public class MainView {
 
         TableColumn<Client, String> colAddress = new TableColumn<>("Адрес");
         colAddress.setCellValueFactory(new PropertyValueFactory<>("address"));
-        colAddress.setPrefWidth(200);
+        colAddress.setPrefWidth(150);
 
         TableColumn<Client, String> colDiscount = new TableColumn<>("Скидка");
         colDiscount.setCellValueFactory(new PropertyValueFactory<>("discount"));
@@ -571,15 +594,23 @@ public class MainView {
 
         HBox buttonBox = new HBox(10);
 
-        Button refreshBtn = new Button("Обновить");
-        refreshBtn.setOnAction(e -> loadClients());
-        buttonBox.getChildren().add(refreshBtn);
+        if (isAdmin() || isManager()) {
+            Button addBtn = new Button("Добавить");
+            Button editBtn = new Button("Изменить");
+            addBtn.setOnAction(e -> showAddClientDialog());
+            editBtn.setOnAction(e -> showEditClientDialog());
+            buttonBox.getChildren().addAll(addBtn, editBtn);
+        }
 
         if (isAdmin()) {
             Button deleteBtn = new Button("Удалить");
             deleteBtn.setOnAction(e -> deleteClient());
             buttonBox.getChildren().add(deleteBtn);
         }
+
+        Button refreshBtn = new Button("Обновить");
+        refreshBtn.setOnAction(e -> loadClients());
+        buttonBox.getChildren().add(refreshBtn);
 
         vbox.getChildren().addAll(clientTable, buttonBox);
         loadClients();
@@ -590,6 +621,124 @@ public class MainView {
         List<Client> clients = clientDAO.getAllClients();
         ObservableList<Client> data = FXCollections.observableArrayList(clients);
         clientTable.setItems(data);
+    }
+
+    private void showAddClientDialog() {
+        Dialog<Client> dialog = new Dialog<>();
+        dialog.setTitle("Добавление клиента");
+        dialog.setHeaderText(null);
+
+        ButtonType saveBtn = new ButtonType("Сохранить", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveBtn, ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20));
+
+        TextField nameField = new TextField();
+        nameField.setPromptText("ФИО");
+        TextField phoneField = new TextField();
+        phoneField.setPromptText("Телефон");
+        TextField addressField = new TextField();
+        addressField.setPromptText("Адрес");
+
+        ComboBox<Discount> discountCombo = new ComboBox<>();
+        discountCombo.setPromptText("Скидка");
+        List<Discount> discounts = discountDAO.getAllDiscounts();
+        discountCombo.getItems().addAll(discounts);
+
+        grid.add(new Label("ФИО:"), 0, 0);
+        grid.add(nameField, 1, 0);
+        grid.add(new Label("Телефон:"), 0, 1);
+        grid.add(phoneField, 1, 1);
+        grid.add(new Label("Адрес:"), 0, 2);
+        grid.add(addressField, 1, 2);
+        grid.add(new Label("Скидка:"), 0, 3);
+        grid.add(discountCombo, 1, 3);
+
+        dialog.getDialogPane().setContent(grid);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == saveBtn) {
+                Client client = new Client();
+                client.setFullName(nameField.getText());
+                client.setPhone(phoneField.getText());
+                client.setAddress(addressField.getText());
+                client.setDiscount(discountCombo.getValue());
+                return client;
+            }
+            return null;
+        });
+
+        dialog.showAndWait().ifPresent(client -> {
+            if (clientDAO.addClient(client)) {
+                loadClients();
+                showAlert("Успех", "Клиент добавлен!");
+            } else {
+                showAlert("Ошибка", "Не удалось добавить клиента!");
+            }
+        });
+    }
+
+    private void showEditClientDialog() {
+        Client selected = clientTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showAlert("Ошибка", "Выберите клиента!");
+            return;
+        }
+
+        Dialog<Client> dialog = new Dialog<>();
+        dialog.setTitle("Редактирование клиента");
+        dialog.setHeaderText(null);
+
+        ButtonType saveBtn = new ButtonType("Сохранить", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveBtn, ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20));
+
+        TextField nameField = new TextField(selected.getFullName());
+        TextField phoneField = new TextField(selected.getPhone());
+        TextField addressField = new TextField(selected.getAddress());
+
+        ComboBox<Discount> discountCombo = new ComboBox<>();
+        List<Discount> discounts = discountDAO.getAllDiscounts();
+        discountCombo.getItems().addAll(discounts);
+        discountCombo.setValue(selected.getDiscount());
+
+        grid.add(new Label("ФИО:"), 0, 0);
+        grid.add(nameField, 1, 0);
+        grid.add(new Label("Телефон:"), 0, 1);
+        grid.add(phoneField, 1, 1);
+        grid.add(new Label("Адрес:"), 0, 2);
+        grid.add(addressField, 1, 2);
+        grid.add(new Label("Скидка:"), 0, 3);
+        grid.add(discountCombo, 1, 3);
+
+        dialog.getDialogPane().setContent(grid);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == saveBtn) {
+                selected.setFullName(nameField.getText());
+                selected.setPhone(phoneField.getText());
+                selected.setAddress(addressField.getText());
+                selected.setDiscount(discountCombo.getValue());
+                return selected;
+            }
+            return null;
+        });
+
+        dialog.showAndWait().ifPresent(client -> {
+            if (clientDAO.updateClient(client)) {
+                loadClients();
+                showAlert("Успех", "Клиент обновлен!");
+            } else {
+                showAlert("Ошибка", "Не удалось обновить клиента!");
+            }
+        });
     }
 
     private void deleteClient() {
@@ -642,7 +791,11 @@ public class MainView {
         colAmount.setCellValueFactory(new PropertyValueFactory<>("totalAmount"));
         colAmount.setPrefWidth(100);
 
-        contractTable.getColumns().addAll(colId, colClient, colIssue, colReturn, colAmount);
+        TableColumn<Contract, String> colDiscount = new TableColumn<>("Скидка");
+        colDiscount.setCellValueFactory(new PropertyValueFactory<>("discount"));
+        colDiscount.setPrefWidth(150);
+
+        contractTable.getColumns().addAll(colId, colClient, colIssue, colReturn, colAmount, colDiscount);
 
         HBox buttonBox = new HBox(10);
 
@@ -736,6 +889,7 @@ public class MainView {
         priceField.setPromptText("Нажмите 'Рассчитать'");
 
         Button calcButton = new Button("Рассчитать стоимость");
+        calcButton.setStyle("-fx-background-color: #E91E63; -fx-text-fill: white; -fx-font-weight: bold;");
 
         Label carInfoLabel = new Label("Выберите автомобиль");
         carInfoLabel.setStyle("-fx-font-style: italic; -fx-text-fill: #666;");
@@ -753,10 +907,11 @@ public class MainView {
 
         calcButton.setOnAction(e -> {
             Car car = carCombo.getValue();
+            Client client = clientCombo.getValue();
             LocalDate issue = issueDatePicker.getValue();
             LocalDate returnD = returnDatePicker.getValue();
 
-            if (car == null || issue == null || returnD == null) {
+            if (car == null || client == null || issue == null || returnD == null) {
                 showAlert("Ошибка", "Заполните все поля!");
                 return;
             }
@@ -765,15 +920,18 @@ public class MainView {
                 return;
             }
 
-            double total = PriceCalculator.calculateTotal(car, issue, returnD);
+            double total = PriceCalculator.calculateTotalWithDiscount(car, issue, returnD, client.getDiscount());
             long days = java.time.temporal.ChronoUnit.DAYS.between(issue, returnD);
             if (days == 0) days = 1;
 
-            priceField.setText(String.format("%.2f руб. (%.2f руб./день x %d дней)",
-                    total, PriceCalculator.getBasePrice(car.getType()) *
-                            PriceCalculator.getYearCoefficient(car.getProductionYear()), days));
-
-            showAlert("Расчёт", "Итоговая стоимость: " + String.format("%.2f руб.", total));
+            if (client.getDiscount() != null) {
+                priceField.setText(String.format("%.2f руб. (скидка %s %s%%)",
+                        total, client.getDiscount().getName(), client.getDiscount().getPercentSize()));
+            } else {
+                priceField.setText(String.format("%.2f руб. (%.2f руб./день x %d дней)",
+                        total, PriceCalculator.getBasePrice(car.getType()) *
+                                PriceCalculator.getYearCoefficient(car.getProductionYear()), days));
+            }
         });
 
         int row = 0;
@@ -810,12 +968,13 @@ public class MainView {
                     return null;
                 }
 
-                double total = PriceCalculator.calculateTotal(car, issue, returnD);
+                double total = PriceCalculator.calculateTotalWithDiscount(car, issue, returnD, client.getDiscount());
                 Contract contract = new Contract();
                 contract.setClient(client);
                 contract.setIssueDate(issue);
                 contract.setReturnDate(returnD);
                 contract.setTotalAmount(BigDecimal.valueOf(total));
+                contract.setDiscount(client.getDiscount());
                 return contract;
             }
             return null;

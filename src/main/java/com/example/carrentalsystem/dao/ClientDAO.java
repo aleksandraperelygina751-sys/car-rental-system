@@ -45,13 +45,48 @@ public class ClientDAO {
     }
 
     public boolean addClient(Client client) {
-        String query = "INSERT INTO clients (full_name, phone, address, id_user) VALUES (?, ?, ?, ?)";
+        String query = "INSERT INTO clients (full_name, phone, address, id_discount, id_user) VALUES (?, ?, ?, ?, ?)";
 
         try (PreparedStatement stmt = DBConnection.getInstance().getConnection().prepareStatement(query)) {
             stmt.setString(1, client.getFullName());
             stmt.setString(2, client.getPhone());
             stmt.setString(3, client.getAddress());
-            stmt.setInt(4, client.getIdUser());
+
+            if (client.getDiscount() != null) {
+                stmt.setInt(4, client.getDiscount().getId());
+            } else {
+                stmt.setNull(4, Types.INTEGER);
+            }
+
+            if (client.getIdUser() > 0) {
+                stmt.setInt(5, client.getIdUser());
+            } else {
+                stmt.setNull(5, Types.INTEGER);
+            }
+
+            return stmt.executeUpdate() > 0;
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean updateClient(Client client) {
+        String query = "UPDATE clients SET full_name = ?, phone = ?, address = ?, id_discount = ? WHERE id_client = ?";
+
+        try (PreparedStatement stmt = DBConnection.getInstance().getConnection().prepareStatement(query)) {
+            stmt.setString(1, client.getFullName());
+            stmt.setString(2, client.getPhone());
+            stmt.setString(3, client.getAddress());
+
+            if (client.getDiscount() != null) {
+                stmt.setInt(4, client.getDiscount().getId());
+            } else {
+                stmt.setNull(4, Types.INTEGER);
+            }
+
+            stmt.setInt(5, client.getId());
             return stmt.executeUpdate() > 0;
 
         } catch (SQLException e) {
